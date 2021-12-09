@@ -82,13 +82,13 @@ Status Pad<T>::ComputeInternal(OpKernelContext* ctx) const {
   auto const& input_shape = input_tensor.Shape();
   int32_t dimension_count = static_cast<int32_t>(input_shape.NumDimensions());
 
-  const std::vector<int64_t>* p_pads = &pads_;
-  const std::vector<int64_t>* p_slices = &slices_;
+  const TensorShapeVector* p_pads = &pads_;
+  const TensorShapeVector* p_slices = &slices_;
   CudaT value = ToCudaType<T>::FromFloat(value_);
 
   // kOnnxDomain Pad opset >= 11 (Or) kMsDomain opset == 1
-  std::vector<int64_t> pads;
-  std::vector<int64_t> slices;
+  TensorShapeVector pads;
+  TensorShapeVector slices;
   if (is_dynamic_) {
     const Tensor& pads_tensor = *ctx->Input<Tensor>(1);
     const auto pads_tensor_dims = pads_tensor.Shape().GetDims();
@@ -132,7 +132,7 @@ Status Pad<T>::ComputeInternal(OpKernelContext* ctx) const {
   TArray<int64_t> input_dims(input_shape.GetDims());
   TArray<int64_t> input_strides(input_pitches);
 
-  std::vector<int64_t> output_dims(input_shape.GetDimsAsVector());
+  auto output_dims(input_shape.AsShapeVector());
   ORT_ENFORCE(dimension_count * 2 == p_pads->size(), "'pads' attribute has wrong number of values");
 
   // Calculate output dimensions, and handle any negative padding

@@ -28,7 +28,7 @@ inline Status PrepareForComputeHelper(const gsl::span<const int64_t>& raw_starts
   }
 
   // Iterate through the provided axes and override the start/end ranges
-  InlineHashSet<int64_t> unique_axes;
+  InlinedHashSet<int64_t> unique_axes;
   const auto dimension_count = compute_metadata.input_dimensions_.size();
   for (size_t axis_index = 0, axes_count = axes.size(); axis_index < axes_count; ++axis_index) {
     const auto axis = HandleNegativeAxis(axes[axis_index], dimension_count);  // handle negative and enforce axis is valid
@@ -83,7 +83,7 @@ inline Status PrepareForComputeHelper(const gsl::span<const int64_t>& raw_starts
   }
 
   // Iterate through the provided axes and override the start/end/steps ranges
-  InlineHashSet<int64_t> unique_axes;
+  InlinedHashSet<int64_t> unique_axes;
   const auto dimension_count = compute_metadata.input_dimensions_.size();
   for (size_t axis_index = 0, axes_count = axes.size(); axis_index < axes_count; ++axis_index) {
     const auto axis = axes[axis_index] < 0 ? axes[axis_index] + static_cast<int64_t>(dimension_count) : axes[axis_index];

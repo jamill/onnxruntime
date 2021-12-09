@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#include "core/framework/inline_containers.h"
 #include "core/providers/cpu/reduction/reduction_ops.h"
 #include "core/providers/common.h"
 
@@ -242,28 +243,28 @@ static void ValidateMustBeOverloaded() {
   ORT_ENFORCE(false, "must be overloaded.");
 }
 
-static void ValidateFastReduceKR(const std::vector<int64_t>& fast_shape, const Tensor& output) {
+static void ValidateFastReduceKR(const gsl::span<const int64_t>& fast_shape, const Tensor& output) {
   ORT_ENFORCE(fast_shape.size() == 2, "Only works on matrices with two dimensions.");
   ORT_ENFORCE(fast_shape[0] == output.Shape().Size(), "Output size mismatch.");
 }
 
-static void ValidateFastReduceRK(const std::vector<int64_t>& fast_shape, const Tensor& output) {
+static void ValidateFastReduceRK(const gsl::span<const int64_t>& fast_shape, const Tensor& output) {
   ORT_ENFORCE(fast_shape.size() == 2, "Only works on matrices with two dimensions.");
   ORT_ENFORCE(fast_shape[1] == output.Shape().Size(), "Output size mismatch.");
 }
 
-static void ValidateFastReduceKRK(const std::vector<int64_t>& fast_shape, const Tensor& output) {
+static void ValidateFastReduceKRK(const gsl::span<const int64_t>& fast_shape, const Tensor& output) {
   ORT_ENFORCE(fast_shape.size() == 3, "Only works on matrices with two dimensions.");
   ORT_ENFORCE(fast_shape[0] * fast_shape[2] == output.Shape().Size(), "Output size mismatch.");
 }
 
-void ReduceAggregatorBase::FastReduceKR(const Tensor&, const std::vector<int64_t>&, Tensor&, concurrency::ThreadPool*) {
+void ReduceAggregatorBase::FastReduceKR(const Tensor&, const gsl::span<const int64_t>&, Tensor&, concurrency::ThreadPool*) {
   ValidateMustBeOverloaded();
 }
-void ReduceAggregatorBase::FastReduceRK(const Tensor&, const std::vector<int64_t>&, Tensor&, concurrency::ThreadPool*) {
+void ReduceAggregatorBase::FastReduceRK(const Tensor&, const gsl::span<const int64_t>&, Tensor&, concurrency::ThreadPool*) {
   ValidateMustBeOverloaded();
 }
-void ReduceAggregatorBase::FastReduceKRK(const Tensor&, const std::vector<int64_t>&, Tensor&, concurrency::ThreadPool*) {
+void ReduceAggregatorBase::FastReduceKRK(const Tensor&, const gsl::span<const int64_t>&, Tensor&, concurrency::ThreadPool*) {
   ValidateMustBeOverloaded();
 }
 
@@ -277,7 +278,7 @@ void NoTransposePrepareForReduce(const TensorShape& new_input_shape,
                                  gsl::span<const int64_t> reduced_axes,
                                  ResultsNoTransposePrepareForReduce& results) {
   // Common initialisation for the indices.
-  auto cumulative_shape = new_input_shape.GetDimsAsVector();
+  auto cumulative_shape = new_input_shape.AsShapeVector();
   cumulative_shape[cumulative_shape.size() - 1] = 1;
   for (int i = static_cast<int>(cumulative_shape.size()) - 2; i >= 0; --i) {
     cumulative_shape[i] = cumulative_shape[i + 1] * new_input_shape[i + 1];
@@ -308,7 +309,7 @@ void NoTransposePrepareForReduce(const TensorShape& new_input_shape,
     results.projected_index.resize(1, 0);
   } else {
     results.projected_index.resize(projection_size);
-    std::vector<int64_t> projected_indices(reduced_axes_size, 0);
+    TensorShapeVector projected_indices(reduced_axes_size, 0);
     int64_t current_index = 0;
     size_t current_pos = 0;
     int j;
@@ -328,7 +329,7 @@ void NoTransposePrepareForReduce(const TensorShape& new_input_shape,
   }
 
   // Builds the list of indices for the unprojected sum.
-  std::vector<int64_t> unreduced_axes;
+  TensorShapeVector unreduced_axes;
   for (int64_t i = 0; i < static_cast<int64_t>(cumulative_shape.size()); ++i) {
     if (std::find(reduced_axes.begin(), reduced_axes.end(), i) != reduced_axes.end())
       continue;
@@ -341,7 +342,7 @@ void NoTransposePrepareForReduce(const TensorShape& new_input_shape,
   if (unprojection_size == 0) {
     return;
   }
-  std::vector<int64_t> unprojected_indices(unreduced_axes.size(), 0);
+  TensorShapeVector unprojected_indices(unreduced_axes.size(), 0);
 
   // The last index is usually an image size.
   // We differently process the last unprojected dimension.
@@ -520,10 +521,10 @@ void NoTransposeReduce2Loops(Tensor* output, const TensorShape& new_input_shape,
   concurrency::ThreadPool::TryParallelFor(tp, count, cost, fn);
 }
 
-void DropDimensions(const std::vector<int64_t>& input_shape,
-                    const std::vector<int64_t>& axes,
-                    std::vector<int64_t>& dropped_axes) {
-  auto dropped_dims = input_shape;
+void DropDimensions(const gsl::span<const int64_t>& input_shape,
+                    const gsl::span<const int64_t>& axes,
+                    TensorShapeVector& dropped_axes) {
+  TensorShapeVector dropped_dims = ToShapeVector(input_shape);
   for (auto i : axes) {
     dropped_dims[i] = -1;
   }
@@ -536,18 +537,18 @@ void DropDimensions(const std::vector<int64_t>& input_shape,
 
 FastReduceKind OptimizeShapeForFastReduce(gsl::span<const int64_t> input_shape,
                                           gsl::span<const int64_t> reduced_axes,
-                                          std::vector<int64_t>& fast_shape,
-                                          std::vector<int64_t>& fast_output_shape,
-                                          std::vector<int64_t>& fast_axes,
+                                          TensorShapeVector& fast_shape,
+                                          TensorShapeVector& fast_output_shape,
+                                          TensorShapeVector& fast_axes,
                                           bool keep_dims, bool noop_with_empty_axes) {
   if (input_shape.empty()) {
-    fast_shape = std::vector<int64_t>(input_shape.begin(), input_shape.end());
+    fast_shape.assign(input_shape.begin(), input_shape.end());
     fast_output_shape = fast_shape;
-    fast_axes = std::vector<int64_t>(reduced_axes.begin(), reduced_axes.end());
+    fast_axes.assign(reduced_axes.begin(), reduced_axes.end());
     return FastReduceKind::kNone;
   }
 
-  std::set<int64_t> axes;
+  InlinedHashSet<int64_t> axes;
   if (reduced_axes.size() == 0 && !noop_with_empty_axes) {
     for (int64_t i = 0; i < (int64_t)input_shape.size(); ++i) {
       axes.insert(i);
@@ -561,7 +562,7 @@ FastReduceKind OptimizeShapeForFastReduce(gsl::span<const int64_t> input_shape,
   fast_output_shape.clear();
   fast_output_shape.reserve(input_shape.size());
   bool empty_reduce = false;
-  std::vector<bool> reduce(input_shape.size());
+  InlinedVectorShapeCap<bool> reduce(input_shape.size());
   for (int64_t i = 0; i < (int64_t)input_shape.size(); ++i) {
     reduce[i] = axes.find(i) != axes.end();
     if (reduce[i]) {
@@ -585,7 +586,7 @@ FastReduceKind OptimizeShapeForFastReduce(gsl::span<const int64_t> input_shape,
     }
     if (noop_with_empty_axes) {
       fast_axes.clear();
-      fast_output_shape = std::vector<int64_t>(input_shape.begin(), input_shape.end());
+      fast_output_shape.assign(input_shape.begin(), input_shape.end());
       return FastReduceKind::kK;
     } else {
       if (keep_dims) {
@@ -636,7 +637,7 @@ void ValidateCommonFastReduce(const Tensor* axes_tensor) {
 }
 
 //template <typename T, typename TVAL>
-bool CommonFastReduceCopy(OpKernelContext* ctx, std::vector<int64_t>& input_axes, bool noop_with_empty_axes) {
+bool CommonFastReduceCopy(OpKernelContext* ctx, TensorShapeVector& input_axes, bool noop_with_empty_axes) {
   if (ctx->InputCount() == 2) {
     // second input holds the axes.
     const Tensor* axes_tensor = ctx->Input<Tensor>(1);
@@ -656,25 +657,25 @@ bool CommonFastReduceCopy(OpKernelContext* ctx, std::vector<int64_t>& input_axes
   return false;
 }
 
-typedef void fast_reduce_fct(const Tensor& input, const std::vector<int64_t>& fast_shape,
+typedef void fast_reduce_fct(const Tensor& input, const gsl::span<const int64_t>& fast_shape,
                              Tensor& output, concurrency::ThreadPool* tp);
 
 bool CommonFastReduceSwitch(OpKernelContext* ctx,
-                            const std::vector<int64_t>& axes_,
+                            const gsl::span<const int64_t>& axes_,
                             int64_t keepdims_,
                             bool noop_with_empty_axes,
                             FastReduceKind& fast_kind,
-                            std::vector<int64_t>& fast_shape,
-                            std::vector<int64_t>& output_shape,
-                            std::vector<int64_t>& fast_axes,
+                            TensorShapeVector& fast_shape,
+                            TensorShapeVector& output_shape,
+                            TensorShapeVector& fast_axes,
                             FastReduceKind which_fast_reduce,
                             fast_reduce_fct* case_kr,
                             fast_reduce_fct* case_rk,
                             fast_reduce_fct* case_krk) {
-  std::vector<int64_t> axes;
+  TensorShapeVector axes;
   const Tensor* input = ctx->Input<Tensor>(0);
   auto reduced_dims = input->Shape().GetDims();
-  std::vector<int64_t> input_axes;
+  TensorShapeVector input_axes;
 
   if (CommonFastReduceCopy(ctx, input_axes, noop_with_empty_axes)) {
     return true;
@@ -728,13 +729,13 @@ bool CommonFastReduceSwitch(OpKernelContext* ctx,
 
 template <typename AGG>
 bool CommonFastReduce(OpKernelContext* ctx,
-                      const std::vector<int64_t>& axes_,
+                      const gsl::span<const int64_t>& axes_,
                       int64_t keepdims_,
                       bool noop_with_empty_axes,
                       FastReduceKind& fast_kind,
-                      std::vector<int64_t>& fast_shape,
-                      std::vector<int64_t>& output_shape,
-                      std::vector<int64_t>& fast_axes) {
+                      TensorShapeVector& fast_shape,
+                      TensorShapeVector& output_shape,
+                      TensorShapeVector& fast_axes) {
   return CommonFastReduceSwitch(ctx, axes_, keepdims_, noop_with_empty_axes,
                                 fast_kind, fast_shape, output_shape, fast_axes,
                                 AGG::WhichFastReduce(), &AGG::FastReduceKR, &AGG::FastReduceRK, &AGG::FastReduceKRK);
@@ -753,12 +754,12 @@ static void ValidateKeepDims(const Tensor* input, int64_t keepdims) {
 
 template <typename AGG>
 void CommonReduce1Loop(OpKernelContext* ctx,
-                       const std::vector<int64_t>& axes_, int64_t keepdims_,
+                       const gsl::span<const int64_t>& axes_, int64_t keepdims_,
                        bool noop_with_empty_axes) {
   FastReduceKind fast_kind;
-  std::vector<int64_t> fast_shape;
-  std::vector<int64_t> output_shape;
-  std::vector<int64_t> fast_axes;
+  TensorShapeVector fast_shape;
+  TensorShapeVector output_shape;
+  TensorShapeVector fast_axes;
   if (CommonFastReduce<AGG>(ctx, axes_, keepdims_, noop_with_empty_axes,
                             fast_kind, fast_shape, output_shape, fast_axes)) {
     return;
@@ -786,10 +787,10 @@ void CommonReduce1Loop(OpKernelContext* ctx,
 
 template <typename AGG>
 void CommonReduce2Loops(OpKernelContext* ctx,
-                        const std::vector<int64_t>& axes_, int64_t keepdims_,
+                        const gsl::span<const int64_t>& axes_, int64_t keepdims_,
                         bool noop_with_empty_axes) {
   FastReduceKind fast_kind;
-  std::vector<int64_t> fast_shape, output_shape, fast_axes;
+  TensorShapeVector fast_shape, output_shape, fast_axes;
   if (CommonFastReduce<AGG>(ctx, axes_, keepdims_, noop_with_empty_axes,
                             fast_kind, fast_shape, output_shape, fast_axes)) {
     return;
@@ -877,15 +878,15 @@ template <typename T>
 std::unique_ptr<Tensor> ReduceSum<T>::Impl(const Tensor& input, gsl::span<const int64_t> reduce_axes,
                                            AllocatorPtr allocator, concurrency::ThreadPool* tp, bool keep_dims,
                                            const TensorShape* input_shape_override) {
-  std::vector<int64_t> axes;
-  std::vector<int64_t> output_shape, fast_shape, fast_axes;
+  TensorShapeVector axes;
+  TensorShapeVector output_shape, fast_shape, fast_axes;
   TensorShape new_input_shape = input_shape_override == nullptr ? input.Shape() : *input_shape_override;
   auto reduced_dims = new_input_shape.GetDims();
 
   FastReduceKind fast_kind = OptimizeShapeForFastReduce(
       reduced_dims, reduce_axes, fast_shape, output_shape, fast_axes, keep_dims, false);
 
-  auto output = make_unique<Tensor>(input.DataType(), keep_dims ? output_shape : std::vector<int64_t>(), allocator);
+  auto output = std::make_unique<Tensor>(input.DataType(), keep_dims ? output_shape : TensorShapeVector(), allocator);
 
   if (fast_kind == FastReduceKind::kEmpty) {
     if (new_input_shape.Size() == 1) {
@@ -974,16 +975,16 @@ template class ReduceSum<double>;
 template class ReduceSum<int64_t>;
 
 template void CommonReduce1Loop<ReduceAggregatorSum<float>>(OpKernelContext* ctx,
-                                                            const std::vector<int64_t>& axes_, int64_t keepdims_,
+                                                            const gsl::span<const int64_t>& axes_, int64_t keepdims_,
                                                             bool noop_with_empty_axes);
 template void CommonReduce1Loop<ReduceAggregatorSum<int32_t>>(OpKernelContext* ctx,
-                                                              const std::vector<int64_t>& axes_, int64_t keepdims_,
+                                                              const gsl::span<const int64_t>& axes_, int64_t keepdims_,
                                                               bool noop_with_empty_axes);
 template void CommonReduce1Loop<ReduceAggregatorSum<double>>(OpKernelContext* ctx,
-                                                             const std::vector<int64_t>& axes_, int64_t keepdims_,
+                                                             const gsl::span<const int64_t>& axes_, int64_t keepdims_,
                                                              bool noop_with_empty_axes);
 template void CommonReduce1Loop<ReduceAggregatorSum<int64_t>>(OpKernelContext* ctx,
-                                                              const std::vector<int64_t>& axes_, int64_t keepdims_,
+                                                              const gsl::span<const int64_t>& axes_, int64_t keepdims_,
                                                               bool noop_with_empty_axes);
 
 }  // namespace onnxruntime
