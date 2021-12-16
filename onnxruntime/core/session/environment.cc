@@ -215,6 +215,7 @@ Status Environment::Initialize(std::unique_ptr<logging::LoggingManager> logging_
       ONNX_NAMESPACE::OpSchemaRegistry::DomainToVersionRange::Instance().AddDomainToVersion(onnxruntime::kMSDomain, 1, 1);
       ONNX_NAMESPACE::OpSchemaRegistry::DomainToVersionRange::Instance().AddDomainToVersion(onnxruntime::kMSExperimentalDomain, 1, 1);
       ONNX_NAMESPACE::OpSchemaRegistry::DomainToVersionRange::Instance().AddDomainToVersion(onnxruntime::kMSNchwcDomain, 1, 1);
+      ONNX_NAMESPACE::OpSchemaRegistry::DomainToVersionRange::Instance().AddDomainToVersion(onnxruntime::kPytorchAtenDomain, 1, 1);
 #ifdef USE_DML
       ONNX_NAMESPACE::OpSchemaRegistry::DomainToVersionRange::Instance().AddDomainToVersion(onnxruntime::kMSDmlDomain, 1, 1);
 #endif
@@ -260,7 +261,7 @@ Status Environment::Initialize(std::unique_ptr<logging::LoggingManager> logging_
       all_types.insert(all_types.end(), all_tensor_types.begin(), all_tensor_types.end());
       all_types.insert(all_types.end(), all_sequence_types.begin(), all_sequence_types.end());
       all_types.emplace_back("seq(tensor(bfloat16))");
-      all_types.erase(std::remove_if(all_types.begin(), all_types.end(), 
+      all_types.erase(std::remove_if(all_types.begin(), all_types.end(),
                       [](const std::string& s) { return s.find("string") != std::string::npos; }), all_types.end());
       return all_types; }();
 
