@@ -23,7 +23,7 @@ parameters:
 - name: TrtVersion
   displayName: TensorRT Version
   type: string
-  default: 8.2.1.8
+  default: 8.0.1.6
   values:
   - 8.2.1.8
   - 8.0.1.6
@@ -37,13 +37,11 @@ parameters:
 - name: PublishWheel
   displayName: Publish Wheel 
   type: boolean
-  default: false
+  default: true
 
 - name: ModelGroups
   type: object
-  default: 
-    - "onnx-zoo-models"
-    - "partner-models"
+  default: []
 
 - name: MemTest
   displayName: Run Memory Test
