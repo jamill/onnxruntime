@@ -23,23 +23,13 @@ debug = False
 sys.path.append('.')
 logger = logging.getLogger('')
 
-# global ep variables 
-cpu = "CPUExecutionProvider"
-acl = "ACLExecutionProvider"
-cuda = "CUDAExecutionProvider"
-cuda_fp16 = "CUDAExecutionProvider_fp16"
-trt = "TensorrtExecutionProvider"
-trt_fp16 = "TensorrtExecutionProvider_fp16"
-standalone_trt = "Standalone_TRT"
-standalone_trt_fp16 = "Standalone_TRT_fp16"
-
 ep_to_provider_list = {
-    cpu: [cpu],
-    acl: [acl], 
-    cuda: [cuda],
-    cuda_fp16: [cuda],
-    trt: [trt, cuda],
-    trt_fp16: [trt, cuda]
+    cpu: [cpu_ep],
+    acl: [acl_ep], 
+    cuda: [cuda_ep],
+    cuda_fp16: [cuda_ep],
+    trt: [trt_ep, cuda_ep],
+    trt_fp16: [trt_ep, cuda_ep]
 }
 
 # latency gain headers 
@@ -69,9 +59,10 @@ def is_dynamic(model):
 def run_trt_standalone(trtexec, model_name, model_path, ort_inputs, all_inputs_shape, fp16, track_memory):
     logger.info("running standalone trt")
     onnx_model_path = "--onnx=" + model_path
+    
+    # load inputs
     input_shape = []
     loaded_inputs = []
-    logger.info(all_inputs_shape)
     for i in range(len(ort_inputs)):
         name = ort_inputs[i].name
         loaded_input = name + ':' + str(i) + '.bin'
@@ -84,42 +75,46 @@ def run_trt_standalone(trtexec, model_name, model_path, ort_inputs, all_inputs_s
         loaded_inputs.append(loaded_input)
 
     shapes_arg = '--optShapes=' + ','.join(input_shape)
-    logger.info(shapes_arg)
     inputs_arg = '--loadInputs=' + ','.join(loaded_inputs)
-    logger.info(inputs_arg)
     result = {}
-    command = [trtexec, onnx_model_path, "--duration=50", "--percentile=90", "--explicitBatch", "--workspace=4096"]
-    command.extend([inputs_arg])
+    # "--explicitBatch" only 8.0.1.6
+    command = [trtexec, onnx_model_path, "--duration=50", "--percentile=90", "--workspace=4096"]
+    #command.extend([inputs_arg])
     
+    # add benchmarking flags
     model = onnx.load(model_path)
     if is_dynamic(model):
         command.extend([shapes_arg])
     if fp16: 
         command.extend(["--fp16"])
-    logger.info(command)
     
+    # save engine
     engine_name = model_name + ".engine"
-    command1 = command + ["--saveEngine=" + engine_name]
-    logger.info(command1)
-    out = get_output(command1)
+    save_command = command + ["--saveEngine=" + engine_name]
+    logger.info(save_command)
+    out = get_output(save_command)
 
-    command2 = command + ["--loadEngine=" + engine_name]
-    logger.info(command2)
+    # load engine and inference
+    load_command = command + ["--loadEngine=" + engine_name]
+    logger.info(load_command)
 
     trtexec = True 
     mem_usage = None
     p = None
+    success = False
     if track_memory: 
         p = start_memory_tracking()            
         try: 
-            out = get_output(command2)
-            mem_usage = end_memory_tracking(p, trtexec, True)
+            out = get_output(load_command)
+            success = True
+            mem_usage = end_memory_tracking(p, trtexec, success)
         except Exception as e: 
-            end_memory_tracking(p, trtexec, False)
+            end_memory_tracking(p, trtexec, success)
             raise(e)
     else: 
-        out = get_output(command2)
+        out = get_output(load_command)
     
+    # parse trtexec output
     tmp = out.split("\n")
     target_list = []
     for t in tmp:
@@ -138,6 +133,7 @@ def run_trt_standalone(trtexec, model_name, model_path, ort_inputs, all_inputs_s
         result["latency_90_percentile"] = percentile_match.group(1) # extract number
     if mem_usage: 
         result["memory"] = mem_usage
+    
     logger.info(result)
     return result
 
@@ -156,7 +152,6 @@ def get_latency_result(runtimes, batch_size):
         "QPS": "{:.2f}".format(throughput),
     }
     return result
-
 
 def get_ort_session_inputs_and_outputs(name, session, ort_input):
 
@@ -188,9 +183,6 @@ def get_ort_session_inputs_and_outputs(name, session, ort_input):
         sess_inputs[session.get_inputs()[0].name] = ort_input[0]
         sess_outputs = ['Identity:0']
 
-    elif 'shufflenet-v2' in name.lower() or 'shufflenet_v2' in name.lower():
-        sess_inputs[session.get_inputs()[0].name] = ort_input
-
     else:
         sess_inputs = {}
         sess_outputs = []
@@ -201,7 +193,7 @@ def get_ort_session_inputs_and_outputs(name, session, ort_input):
     return (sess_inputs, sess_outputs)
 
 def track_ep_memory(ep): 
-     return trt in ep or cuda in ep or standalone_trt in ep
+     return cpu != ep 
 
 def get_trtexec_pid(df, python_pid): 
     for pid in df['pid'].tolist(): 
@@ -213,7 +205,6 @@ def get_max_memory(trtexec):
     pid = df['pid'].iloc[0]
     if trtexec: 
         pid = get_trtexec_pid(df, pid) 
-    logger.info(pid) 
     mem_series = df.loc[df['pid'] == pid, ' used_gpu_memory [MiB]']
     max_mem = max(mem_series.str.replace(' MiB','').astype(int))
     return max_mem
@@ -235,6 +226,14 @@ def end_memory_tracking(p, trtexec, success):
         os.remove(MEMORY_FILE)
     return mem_usage
 
+def inference_ort_with_ep(ep, session, repeat_times, sess_outputs, sess_inputs, io_binding):
+    if cpu in ep: 
+        runtime = timeit.repeat(lambda: session.run(sess_outputs, sess_inputs), number=1, repeat=repeat_times)
+    else: # other eps utilize python binding 
+        runtime = timeit.repeat(lambda: session.run_with_iobinding(io_binding), number=1, repeat=repeat_times)
+    success = True
+    return runtime, success
+
 def inference_ort(args, name, session, ep, ort_inputs, result_template, repeat_times, batch_size, track_memory):
     runtimes = []
     if args.input_data == "random":
@@ -242,11 +241,14 @@ def inference_ort(args, name, session, ep, ort_inputs, result_template, repeat_t
     else:
         repeat_times += 1 # add warn-up run
     
-    mem_usage = None 
-    i = 0
-    mem_usages = []
+    mem_usages = []   
+    p = None
+    mem_usage = None
+    trtexec = False
+    success = False
+
+    # get and load inputs and outputs
     for ort_input in ort_inputs:
-        
         io_binding = session.io_binding()
         sess_inputs, sess_outputs = get_ort_session_inputs_and_outputs(name, session, ort_input)
         if debug:
@@ -256,51 +258,31 @@ def inference_ort(args, name, session, ep, ort_inputs, result_template, repeat_t
             logger.info(sess_outputs)
         for name, inp in sess_inputs.items():
             io_binding.bind_cpu_input(name, inp)
-        
         for out in sess_outputs: 
             io_binding.bind_output(out)
+       
+        try:
+            if track_memory: 
+                p = start_memory_tracking()    
+                runtime, success = inference_ort_with_ep(ep, session, repeat_times, sess_outputs, sess_inputs, io_binding)
+                mem_usage = end_memory_tracking(p, trtexec, success)
+                mem_usages.append(mem_usage) 
+            else: 
+                runtime, success = inference_ort_with_ep(ep, session, repeat_times, sess_outputs, sess_inputs, io_binding)
+            runtimes += runtime[1:] # remove warmup
         
-        #try:
-            #perf_ep = ''
-            #if ep == cuda or ep == cuda_fp16: 
-            #    perf_ep = 'cuda'
-            #if ep == trt or ep == trt_fp16: 
-            #    perf_ep = 'tensorrt'
-            #if ep == cpu: 
-            #    perf_ep = 'cpu'
-            #command = ['./code/onnxruntime/build/Linux/Release/onnxruntime_perf_test', '-e', 'tensorrt','-t', '50', '-i','"','trt_max_workspace_size|4294967296', 'trt_engine_cache_enable|True']
-            #if trt_fp16 in ep: 
-            #    command.extend['trt_fp16_enable|True']
-            #command.extend(['"', model_path])
-            #if trt in ep or trt_fp16 in ep: 
-            #    out = get_output(command)
-            #os.environ["ORT_TENSORRT_CACHE_PATH"] = "/perf/onnx-zoo-models/renset152-v2-7/TensorrtExecutionProvider_TRTKernel_graph_main_5145462769846823227_1_0_fp16.engine"
-        #runtime = timeit.repeat(lambda: session.run(sess_outputs, sess_inputs), number=1, repeat=repeat_times)
-        mem_usage = None
-        if track_memory: 
-            p = start_memory_tracking()    
-            if ep == cpu: 
-                runtime = timeit.repeat(lambda: session.run(sess_outputs, sess_inputs), number=1, repeat=repeat_times)
-            else: 
-                runtime = timeit.repeat(lambda: session.run_with_iobinding(io_binding), number=1, repeat=repeat_times)
-            mem_usage = end_memory_tracking(p, False, True)
-            mem_usages.append(mem_usage) 
-        else: 
-            if ep == cpu: 
-                runtime = timeit.repeat(lambda: session.run(sess_outputs, sess_inputs), number=1, repeat=repeat_times)
-            else: 
-                runtime = timeit.repeat(lambda: session.run_with_iobinding(io_binding), number=1, repeat=repeat_times)
-        runtimes += runtime[1:] # remove warmup
-    
-        #except Exception as e:
-            #logger.error(e)
-            #update_fail_model_map(model_to_fail_ep, name, ep, 'runtime error', e)
-            #return None
+        except Exception as e:
+            logger.error(e)
+            if track_memory:
+                end_memory_tracking(p, trtexec, success)
+            raise(e)
 
-    mem_usage = max(mem_usages)
+    if len(mem_usages) > 0: 
+        mem_usage = max(mem_usages)
+    
     result = {}
     result.update(result_template)
-    result.update({"io_binding": False})
+    result.update({"io_binding": True})
     latency_result = get_latency_result(runtimes, batch_size)
     result.update(latency_result)
     return result, mem_usage 
@@ -352,7 +334,7 @@ def get_acl_version():
 # inputs: [[test_data_0_input_0.pb, test_data_0_input_1.pb ...], [test_data_1_input_0.pb, test_data_1_input_1.pb ...] ...]
 # outputs: [[test_data_0_output_0.pb, test_data_0_output_1.pb ...], [test_data_1_output_0.pb, test_data_1_output_1.pb ...] ...]
 #######################################################################################################################################
-def load_onnx_model_zoo_test_data(path, all_inputs_shape, data_type="fp32"):
+def load_onnx_model_zoo_test_data(path, all_inputs_shape, fp16):
     logger.info("Parsing test data in {} ...".format(path))
     output = get_output(["find", path, "-name", "test_data*", "-type", "d"])
     test_data_set_dir = split_and_sort_output(output)
@@ -371,7 +353,7 @@ def load_onnx_model_zoo_test_data(path, all_inputs_shape, data_type="fp32"):
         pwd = os.getcwd()
         os.chdir(test_data_dir)
 
-        # load inputs
+        # load inputs and create bindings
         output = get_output(["find", ".", "-name", "input*"])
         input_data = split_and_sort_output(output)
         logger.info(input_data)
@@ -383,7 +365,7 @@ def load_onnx_model_zoo_test_data(path, all_inputs_shape, data_type="fp32"):
             with open(data, 'rb') as f:
                 tensor.ParseFromString(f.read())
                 tensor_to_array = numpy_helper.to_array(tensor)
-                if data_type == "fp16" and tensor_to_array.dtype == np.dtype(np.float32):
+                if fp16 and tensor_to_array.dtype == np.dtype(np.float32):
                     tensor_to_array = tensor_to_array.astype(np.float16)
                 tensor_to_array.tofile(str(i) + ".bin")
                 input_data_pb.append(tensor_to_array)
@@ -407,7 +389,7 @@ def load_onnx_model_zoo_test_data(path, all_inputs_shape, data_type="fp32"):
 
                     tensor_to_array = numpy_helper.to_array(tensor)
 
-                    if data_type == "fp16" and tensor_to_array.dtype == np.dtype(np.float32):
+                    if fp16 and tensor_to_array.dtype == np.dtype(np.float32):
                         tensor_to_array = tensor_to_array.astype(np.float16)
                     output_data_pb.append(tensor_to_array)
 
@@ -524,7 +506,6 @@ def remove_profiling_files(path):
             continue
         subprocess.Popen(["rm","-rf", f], stdout=subprocess.PIPE)
 
-
 def remove_files(path):
     files = []
     out = get_output(["find", path, "-name", "onnxruntime_profile*"])
@@ -537,7 +518,8 @@ def remove_files(path):
     for f in files:
         if "custom_test_data" in f:
             continue
-        subprocess.Popen(["rm","-rf", f], stdout=subprocess.PIPE)
+        get_output(["rm","-rf", f])
+
 def update_fail_report(fail_results, model, ep, e_type, e):
     result = {}
 
@@ -904,13 +886,7 @@ def convert_model_from_float_to_float16(model_path):
 def get_test_data(fp16, test_data_dir, all_inputs_shape):
     inputs = []
     ref_outputs = []
-
-    # read input/output of test data
-    if fp16:
-        inputs, ref_outputs = load_onnx_model_zoo_test_data(test_data_dir, all_inputs_shape, "fp16")
-    else:
-        inputs, ref_outputs = load_onnx_model_zoo_test_data(test_data_dir, all_inputs_shape)
-
+    inputs, ref_outputs = load_onnx_model_zoo_test_data(test_data_dir, all_inputs_shape, fp16)
     return inputs, ref_outputs
 
 def run_symbolic_shape_inference(model_path, new_model_path): 
@@ -926,23 +902,19 @@ def run_symbolic_shape_inference(model_path, new_model_path):
 
 def create_session(model_path, providers, session_options):
     logger.info(model_path)
-    try:
-        
-        #po = [{'trt_max_workspace_size': '4294967296', 'trt_engine_cache_enable':'True', 'trt_engine_cache_path':'/perf/onnx-zoo-models/renset152-v2-7/TensorrtExecutionProvider_TRTKernel_graph_main_5145462769846823227_1_0_fp16.engine'}]
-        session = onnxruntime.InferenceSession(model_path, providers=providers, sess_options=session_options)
-#        if trt in providers or trt_fp16 in providers:
- #       else: 
-  #          session.set_providers(providers)
 
-        #session = onnxruntime.InferenceSession(model_path, providers=providers, sess_options=session_options)
+    try:
+        session = onnxruntime.InferenceSession(model_path, providers=providers, sess_options=session_options)
         return session
+
     except Exception as e:
+        # shape inference required on model
         if "shape inference" in str(e):
             logger.info("Using model from symbolic_shape_infer.py")
             new_model_path = model_path[:].replace(".onnx", "_new_by_trt_perf.onnx")
             if not os.path.exists(new_model_path):
                 status = run_symbolic_shape_inference(model_path, new_model_path)
-                if not status[0]: 
+                if not status[0]: # symbolic shape inference error
                     e = status[1]
                     raise Exception(e)
             session = onnxruntime.InferenceSession(new_model_path, providers=providers, sess_options=session_options)
@@ -1002,7 +974,7 @@ def run_onnxruntime(args, models):
             if skip_ep(name, ep, model_to_fail_ep):
                 continue
             
-            if standalone_trt not in ep:
+            if not is_standalone(ep):
                 ep_ = ep_to_provider_list[ep][0]
                 if (ep_ not in onnxruntime.get_available_providers()):
                     logger.error("No {} support".format(ep_))
@@ -1012,11 +984,11 @@ def run_onnxruntime(args, models):
             test_data_dir = model_info["test_data_path"]
 
             fp16 = False
-            os.environ["ORT_TENSORRT_FP16_ENABLE"] = "1" if "fp16" in ep else "0"
+            os.environ["ORT_TENSORRT_FP16_ENABLE"] = "1" if "Fp16" in ep else "0"
             logger.info("[Initialize]  model = {}, ep = {} ...".format(name, ep))
            
             # use float16.py for cuda fp16 only
-            if cuda_fp16 in ep: 
+            if cuda_fp16 == ep: 
                 
                 # handle model
                 if "model_path_fp16" in model_info:
@@ -1036,9 +1008,10 @@ def run_onnxruntime(args, models):
                     test_data_dir = model_info["test_data_path_fp16"]
                     fp16 = False 
             
-            if standalone_trt_fp16 in ep: 
+            if standalone_trt_fp16 == ep: 
                 fp16 = True
             
+            print(fp16)
             inputs, ref_outputs = get_test_data(fp16, test_data_dir, all_inputs_shape)
             # generate random input data
             if args.input_data == "random":
@@ -1051,7 +1024,7 @@ def run_onnxruntime(args, models):
                 logger.info("\n----------------------------- benchmark -------------------------------------")
 
                 # resolve providers to create session
-                if standalone_trt in ep: 
+                if is_standalone(ep): 
                     providers = ep_to_provider_list[trt]
                 else: 
                     providers = ep_to_provider_list[ep]
@@ -1070,11 +1043,12 @@ def run_onnxruntime(args, models):
                     continue
                 
                 # memory tracking variables 
-                p = None # keep track of process to kill upon error
+                p = None 
                 mem_usage = None
-         
+                result = None
+
                 # get standalone TensorRT perf
-                if standalone_trt in ep and args.trtexec: 
+                if is_standalone(ep) and args.trtexec: 
                     trtexec = True 
                     try: 
                         result = run_trt_standalone(args.trtexec, name, model_path, sess.get_inputs(), all_inputs_shape, fp16, args.track_memory)
@@ -1102,32 +1076,25 @@ def run_onnxruntime(args, models):
                         "version": onnxruntime.__version__,
                         "device": ep,
                         "fp16": fp16,
-                        "io_binding": False,
+                        "io_binding": True,
                         "model_name": name,
                         "inputs": len(sess.get_inputs()),
                         "batch_size": batch_size,
                         "sequence_length": 1,
                         "datetime": str(datetime.now()),}
                     
-                    repeat_times = args.test_times
-                    if trt in ep or cuda in ep: 
-                        repeat_times = 12000
+                    # run cpu fewer times
+                    repeat_times = 100 if ep == cpu else args.test_times   
+                    track_memory = False if ep == cpu else args.track_memory
+                    
+                    # inference with ort
                     try: 
-                        if args.track_memory and track_ep_memory(ep): 
-                            trtexec = False
-                            #p = start_memory_tracking()            
-                            logger.info("inferencing")
-                            result, mem_usage = inference_ort(args, name, sess, ep, inputs, result_template, repeat_times, batch_size, args.track_memory)
-                            logger.info("done inferencing")
-                            #success = True if result else False
-                            #mem_usage = end_memory_tracking(p, trtexec, success)
-                       # else: 
-                            #result = inference_ort(args, name, sess, ep, inputs, result_template, repeat_times, batch_size, args.track_memory)
+                        result, mem_usage = inference_ort(args, name, sess, ep, inputs, result_template, repeat_times, batch_size, track_memory)
                     except Exception as e:
-                        logger.info("in benchmark")
                         logger.error(e)
                         update_fail_model_map(model_to_fail_ep, name, ep, 'runtime error', e)
                         continue
+                
                 if result:
                     latency_result[ep] = {}
                     latency_result[ep]["average_latency_ms"] = result["average_latency_ms"]
@@ -1136,13 +1103,12 @@ def run_onnxruntime(args, models):
                         mem_usage = result["memory"]
                     if mem_usage: 
                         latency_result[ep]["memory"] = mem_usage
-
                     if not args.trtexec: # skip standalone
                         success_results.append(result)
 
                     model_to_latency[name] = copy.deepcopy(latency_result)
                     remove_files(model_info["working_directory"])
-                    logger.info("in result")
+
                 logger.info("---------------------------- benchmark [end] ----------------------------------\n")
 
 
@@ -1233,13 +1199,13 @@ def calculate_gain(value, ep1, ep2):
 
 def add_improvement_information(model_to_latency):
     for key, value in model_to_latency.items():
-        if trt in value and cuda in value:
+        if "ORT-TRT" in value and "ORT-CUDA" in value:
             gain = calculate_gain(value, trt, cuda)
             value[trt_cuda_gain] = "{:.2f} %".format(gain)
             if trt_fp16 in value and cuda_fp16 in value:
                 gain = calculate_gain(value, trt_fp16, cuda_fp16)
                 value[trt_cuda_fp16_gain] = "{:.2f} %".format(gain)
-        if trt in value and standalone_trt in value:
+        if "ORT-TRT" in value and is_standalone(value):
             gain = calculate_gain(value, trt, standalone_trt)
             value[trt_native_gain] = "{:.2f} %".format(gain)
             if trt_fp16 in value and standalone_trt_fp16 in value:
@@ -1322,15 +1288,7 @@ def output_status(results, csv_filename):
         need_write_header = False 
 
     with open(csv_filename, mode="a", newline='') as csv_file:
-        column_names = ["Model",
-                        cpu,
-                        cuda + " fp32",
-                        trt + " fp32",
-                        standalone_trt + " fp32",
-                        cuda + " fp16",
-                        trt + " fp16",
-                        standalone_trt + " fp16"
-                        ]
+        column_names = table_headers
 
         csv_writer = csv.writer(csv_file)
 
@@ -1381,31 +1339,13 @@ def output_latency(results, csv_filename):
         need_write_header = False 
 
     with open(csv_filename, mode="a", newline='') as csv_file:
-        column_names = ["Model",
-                        "CPU fp32 \nmean (ms)",
-                        "CPU fp32 \n 90th percentile (ms)",
-                        "CUDA fp32 \nmean (ms)",
-                        "CUDA fp32 \n90th percentile (ms)",
-                        "CUDA EP fp32 \npeak memory usage (MiB)",
-                        "TRT EP fp32 \nmean (ms)",
-                        "TRT EP fp32 \n90th percentile (ms)",
-                        "TRT EP fp32 \npeak memory usage (MiB)",
-                        "Standalone TRT fp32 \nmean (ms)",
-                        "Standalone TRT fp32 \n90th percentile (ms)",
-                        "Standalone TRT fp32 \npeak memory usage (MiB)",
-                        "TRT v CUDA EP fp32 \ngain (mean) (%)",
-                        "EP v Standalone TRT fp32 \ngain (mean) (%)",
-                        "CUDA fp16 \nmean (ms)",
-                        "CUDA fp16 \n90th percentile (ms)",
-                        "CUDA EP fp16 \npeak memory usage (MiB)",
-                        "TRT EP fp16 \nmean (ms)",
-                        "TRT EP fp16 \n90th percentile (ms)",
-                        "TRT EP fp16 \npeak memory usage (MiB)",
-                        "Standalone TRT fp16 \nmean (ms)",
-                        "Standalone TRT fp16 \n90th percentile (ms)",
-                        "Standalone TRT fp16 \npeak memory usage (MiB)",
-                        "TRT v CUDA EP fp16 \ngain (mean) (%)", 
-                        "EP v Standalone TRT fp16 \ngain (mean) (%)"]
+        column_names = [model_title]
+        for provider in provider_list: 
+            column_names.append(provider + avg_ending)
+            column_names.append(provider + percentile_ending)
+            if cpu not in provider:
+                column_names.append(provider + memory_ending)
+
         csv_writer = csv.writer(csv_file)
 
         if need_write_header:
@@ -1504,8 +1444,6 @@ def output_latency(results, csv_filename):
                    standalone_trt_average,
                    standalone_trt_90_percentile,
                    standalone_trt_memory,
-                   value[trt_cuda_gain] if trt_cuda_gain in value else "  ",
-                   value[trt_native_gain] if trt_native_gain in value else "  ",
                    cuda_fp16_average,
                    cuda_fp16_90_percentile,
                    cuda_fp16_memory,
@@ -1515,9 +1453,7 @@ def output_latency(results, csv_filename):
                    standalone_trt_fp16_average,
                    standalone_trt_fp16_90_percentile,
                    standalone_trt_fp16_memory,
-                   value[trt_cuda_fp16_gain] if trt_cuda_fp16_gain in value else "  ",
-                   value[trt_native_fp16_gain] if trt_native_fp16_gain in value else "  "
-                   ]
+                ]
             csv_writer.writerow(row)
 
     logger.info(f"CUDA/TRT latency comparison are saved to csv file: {csv_filename}")
