@@ -105,9 +105,6 @@ if (onnxruntime_ENABLE_TRAINING)
 endif()
 
 if (onnxruntime_ENABLE_EAGER_MODE)
-  # todo: this is because the prebuild pytorch may use a different version of protobuf headers.
-  # force the build to find the protobuf headers ort using.
-  target_include_directories(onnxruntime_pybind11_state PRIVATE "${REPO_ROOT}/cmake/external/protobuf/src")
   target_include_directories(onnxruntime_pybind11_state PRIVATE "${TORCH_INSTALL_PREFIX}/include" "${TORCH_INSTALL_PREFIX}/include/torch/csrc/api/include")
   find_library(LIBTORCH_LIBRARY torch PATHS "${TORCH_INSTALL_PREFIX}/lib")
   find_library(LIBTORCH_CPU_LIBRARY torch_cpu PATHS "${TORCH_INSTALL_PREFIX}/lib")

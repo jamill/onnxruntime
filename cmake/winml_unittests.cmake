@@ -9,7 +9,6 @@ set(WINML_TEST_INC_DIR
   ${REPO_ROOT}/onnxruntime
   ${REPO_ROOT}/onnxruntime/core/providers/dml/DmlExecutionProvider/src/External/D3DX12
   ${REPO_ROOT}/cmake/external/googletest/googletest/include
-  ${REPO_ROOT}/cmake/external/protobuf/src
   ${REPO_ROOT}/cmake/external/wil/include
   ${REPO_ROOT}/cmake/external/SafeInt
   ${CMAKE_CURRENT_BINARY_DIR}
