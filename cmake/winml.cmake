@@ -114,6 +114,7 @@ target_cppwinrt(winml_api
   ""                         # set additional cppwinrt ref path
 )
 add_dependencies(winml_api RESTORE_NUGET_PACKAGES)
+target_include_directories(winml_api INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/winml_api)
 
 # generate winml.experimental headers from idl
 target_cppwinrt(winml_api_experimental
@@ -536,7 +537,7 @@ add_dependencies(winml_lib_api winml_api_native_internal)
 
 # Link libraries
 target_link_libraries(winml_lib_api PRIVATE wil winml_lib_common)
-target_link_libbraries(winml_libb_api PRIVATE winml_api)
+target_link_libraries(winml_lib_api PRIVATE winml_api)
 target_link_libraries(winml_lib_api PRIVATE winml_lib_telemetry)
 
 if (onnxruntime_USE_DML)
