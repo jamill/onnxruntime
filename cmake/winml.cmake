@@ -196,6 +196,7 @@ target_include_directories(winml_lib_telemetry PRIVATE ${winml_lib_telemetry_dir
 target_include_directories(winml_lib_telemetry PRIVATE ${ONNXRUNTIME_INCLUDE_DIR}/core/platform/windows)
 target_include_directories(winml_lib_telemetry PRIVATE ${REPO_ROOT}/winml)
 
+# Includes - Public Interface
 target_include_directories(winml_lib_telemetry INTERFACE ${winml_lib_telemetry_dir}/inc)
 
 # Properties
