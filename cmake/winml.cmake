@@ -422,6 +422,9 @@ target_include_directories(winml_lib_image PRIVATE ${REPO_ROOT}/cmake/external/f
 target_include_directories(winml_lib_image PRIVATE ${REPO_ROOT}/cmake/external/mp11/include)
 target_include_directories(winml_lib_image PRIVATE ${REPO_ROOT}/winml)
 
+# Includes - Public Interface
+target_include_directories(winml_lib_image INTERFACE ${winml_lib_api_image_dir}/inc)
+
 # Properties
 set_target_properties(winml_lib_image
   PROPERTIES
@@ -513,7 +516,6 @@ target_include_directories(winml_lib_api PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/win
 
 target_include_directories(winml_lib_api PRIVATE ${winml_lib_api_dir})
 target_include_directories(winml_lib_api PRIVATE ${winml_lib_api_dir}/pch)
-target_include_directories(winml_lib_api PRIVATE ${winml_lib_api_image_dir}/inc)
 
 target_include_directories(winml_lib_api PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(winml_lib_api PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/external/date/include)
@@ -550,6 +552,7 @@ target_link_libraries(winml_lib_api PRIVATE winml_api)
 target_link_libraries(winml_lib_api PRIVATE winml_lib_telemetry)
 target_link_libraries(winml_lib_api PRIVATE winml_adapter)
 target_link_libraries(winml_lib_api PRIVATE winml_lib_ort)
+target_link_libraries(winml_lib_api PRIVATE winml_lib_image)
 
 if (onnxruntime_USE_DML)
   target_add_dml(winml_lib_api)
@@ -605,7 +608,6 @@ target_include_directories(winml_lib_api_experimental PRIVATE ${CMAKE_CURRENT_BI
 
 target_include_directories(winml_lib_api_experimental PRIVATE ${winml_lib_api_dir})
 target_include_directories(winml_lib_api_experimental PRIVATE ${winml_lib_api_dir}/pch)
-target_include_directories(winml_lib_api_experimental PRIVATE ${winml_lib_api_image_dir}/inc)
 
 target_include_directories(winml_lib_api_experimental PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(winml_lib_api_experimental PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/external/date/include)
@@ -644,6 +646,7 @@ target_link_libraries(winml_lib_api_experimental PRIVATE winml_api_experimental)
 target_link_libraries(winml_lib_api_experimental PRIVATE winml_lib_telemetry)
 target_link_libraries(winml_lib_api_experimental PRIVATE winml_adapter)
 target_link_libraries(winml_lib_api_experimental PRIVATE winml_lib_ort)
+target_link_libraries(winml_lib_api_experimental PRIVATE winml_lib_image)
 
 if (onnxruntime_USE_DML)
   target_add_dml(winml_lib_api_experimental)
@@ -760,7 +763,6 @@ target_include_directories(winml_dll PRIVATE ${winml_lib_api_dir}/impl)
 if (NOT winml_is_inbox)
   target_include_directories(winml_dll PRIVATE ${winml_lib_api_experimental_dir})
 endif()
-target_include_directories(winml_dll PRIVATE ${winml_lib_api_image_dir}/inc)
 
 target_include_directories(winml_dll PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(winml_dll PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/external/date/include)
@@ -812,6 +814,7 @@ target_link_libraries(winml_dll PRIVATE winml_api)
 target_link_libraries(winml_dll PRIVATE winml_lib_telemetry)
 target_link_libraries(winml_dll PRIVATE winml_adapter)
 target_link_libraries(winml_dll PRIVATE winml_lib_api)
+target_link_libraries(winml_dll PRIVATE winml_lib_image)
 
 if (NOT winml_is_inbox)
   target_link_libraries(winml_dll PRIVATE winml_lib_api_experimental)
