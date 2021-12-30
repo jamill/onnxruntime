@@ -116,6 +116,10 @@ target_cppwinrt(winml_api
 add_dependencies(winml_api RESTORE_NUGET_PACKAGES)
 target_include_directories(winml_api INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/winml_api)
 
+###########################
+# Add winml_api_experimental
+###########################
+
 # generate winml.experimental headers from idl
 target_cppwinrt(winml_api_experimental
   ${winrt_experimental_idl}   # winml winrt idl to compile
@@ -130,6 +134,7 @@ target_cppwinrt(winml_api_experimental
 )
 add_dependencies(winml_api_experimental RESTORE_NUGET_PACKAGES)
 add_dependencies(winml_api_experimental winml_api)
+target_include_directories(winml_api_experimental INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/winml_api_experimental)
 
 target_midl(winml_api_native
   ${idl_native}             # winml native idl to compile
@@ -589,7 +594,6 @@ target_precompiled_header(winml_lib_api_experimental lib/Api.Experimental/pch/pc
 
 # Includes
 target_include_directories(winml_lib_api_experimental PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api/comp_generated)    # windows machine learning generated component headers
-target_include_directories(winml_lib_api_experimental PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api_experimental)      # windows machine learning generated component headers
 target_include_directories(winml_lib_api_experimental PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api_experimental/comp_generated) # windows machine learning generated component headers
 target_include_directories(winml_lib_api_experimental PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml/sdk/cppwinrt/include)  # sdk cppwinrt headers
 
@@ -632,7 +636,9 @@ add_dependencies(winml_lib_api_experimental winml_api_experimental)
 # Link libraries
 target_link_libraries(winml_lib_api_experimental PRIVATE wil winml_lib_common)
 target_link_libraries(winml_lib_api_experimental PRIVATE winml_api)
+target_link_libraries(winml_lib_api_experimental PRIVATE winml_api_experimental)
 target_link_libraries(winml_lib_api_experimental PRIVATE winml_lib_telemetry)
+
 if (onnxruntime_USE_DML)
   target_add_dml(winml_lib_api_experimental)
 endif(onnxruntime_USE_DML)
