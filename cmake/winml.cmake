@@ -563,7 +563,7 @@ endif(onnxruntime_USE_DML)
 
 
 ###########################
-# Add winml_lib_api_experimental_dir
+# Add winml_lib_api_experimental
 ###########################
 
 # Add static library that will be archived/linked for both static/dynamic library
@@ -625,6 +625,9 @@ target_include_directories(winml_lib_api_experimental PRIVATE ${REPO_ROOT}/cmake
 target_include_directories(winml_lib_api_experimental PRIVATE ${REPO_ROOT}/cmake/external/flatbuffers/include)
 target_include_directories(winml_lib_api_experimental PRIVATE ${REPO_ROOT}/cmake/external/mp11/include)
 target_include_directories(winml_lib_api_experimental PRIVATE ${REPO_ROOT}/winml)
+
+# Includes - Public Interface
+target_include_directories(winml_lib_api_experimental INTERFACE ${winml_lib_api_experimental_dir})
 
 # Properties
 set_target_properties(winml_lib_api_experimental
@@ -758,10 +761,6 @@ target_precompiled_header(winml_dll dll/pch.h)
 target_include_directories(winml_dll PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api/comp_generated)    # windows machine learning generated component headers
 target_include_directories(winml_dll PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api_experimental/comp_generated)    # windows machine learning generated component headers
 target_include_directories(winml_dll PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml/sdk/cppwinrt/include)  # sdk cppwinrt headers
-
-if (NOT winml_is_inbox)
-  target_include_directories(winml_dll PRIVATE ${winml_lib_api_experimental_dir})
-endif()
 
 target_include_directories(winml_dll PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(winml_dll PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/external/date/include)
