@@ -97,6 +97,10 @@ add_generate_cppwinrt_sdk_headers_target(
 )
 add_dependencies(winml_sdk_cppwinrt RESTORE_NUGET_PACKAGES)
 
+###########################
+# Add winml_api
+###########################
+
 # generate winml headers from idl
 target_cppwinrt(winml_api
   ${winrt_idl}               # winml winrt idl to compile
@@ -179,7 +183,6 @@ target_precompiled_header(winml_lib_telemetry lib/Telemetry/pch.h)
 
 # Includes
 target_include_directories(winml_lib_telemetry PRIVATE ${CMAKE_CURRENT_BINARY_DIR})                             # windows machine learning generated component headers
-target_include_directories(winml_lib_telemetry PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api)                   # windows machine learning generated component headers
 target_include_directories(winml_lib_telemetry PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api/comp_generated)    # windows machine learning generated component headers
 target_include_directories(winml_lib_telemetry PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml/sdk/cppwinrt/include)  # sdk cppwinrt headers
 target_include_directories(winml_lib_telemetry PRIVATE ${CMAKE_SOURCE_DIR}/common/inc)
@@ -195,12 +198,12 @@ set_target_properties(winml_lib_telemetry
 
 # Add deps
 add_dependencies(winml_lib_telemetry winml_sdk_cppwinrt)
-add_dependencies(winml_lib_telemetry winml_api)
 add_dependencies(winml_lib_telemetry winml_api_native)
 add_dependencies(winml_lib_telemetry winml_api_native_internal)
 
 # Link libraries
 target_link_libraries(winml_lib_telemetry PRIVATE wil winml_lib_common)
+target_link_libraries(winml_lib_telemetry PRIVATE winml_api)
 
 ###########################
 # Add winml_lib_ort
@@ -250,7 +253,6 @@ endif()
 target_precompiled_header(winml_lib_ort lib/Api.Ort/pch.h)
 
 # Includes
-target_include_directories(winml_lib_ort PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api)                   # windows machine learning generated component headers
 target_include_directories(winml_lib_ort PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api/comp_generated)    # windows machine learning generated component headers
 target_include_directories(winml_lib_ort PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml/sdk/cppwinrt/include)  # sdk cppwinrt headers
 
@@ -270,7 +272,6 @@ set_target_properties(winml_lib_ort
 
 # Add deps
 add_dependencies(winml_lib_ort winml_sdk_cppwinrt)
-add_dependencies(winml_lib_ort winml_api)
 add_dependencies(winml_lib_ort winml_api_native)
 add_dependencies(winml_lib_ort winml_api_native_internal)
 
@@ -281,6 +282,7 @@ endif()
 target_link_libraries(winml_lib_ort PRIVATE wil winml_lib_common)
 target_link_libraries(winml_lib_ort INTERFACE winml_lib_api)
 target_link_libraries(winml_lib_ort INTERFACE winml_lib_telemetry)
+target_link_libraries(winml_lib_ort PRIVATE winml_api)
 
 ###########################
 # Add winml_adapter
@@ -392,7 +394,6 @@ target_precompiled_header(winml_lib_image lib/Api.Image/pch.h)
 
 # Includes
 target_include_directories(winml_lib_image PRIVATE ${CMAKE_CURRENT_BINARY_DIR})                                                               # windows machine learning generated component headers
-target_include_directories(winml_lib_image PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api)                                                     # windows machine learning generated component headers
 target_include_directories(winml_lib_image PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api/comp_generated)                                      # windows machine learning generated component headers
 target_include_directories(winml_lib_image PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml/sdk/cppwinrt/include)                                    # sdk cppwinrt headers
 target_include_directories(winml_lib_image PRIVATE ${ONNXRUNTIME_ROOT}/core/providers/dml/DmlExecutionProvider/src/External/D3DX12)   # for d3dx12.h
@@ -415,12 +416,12 @@ set_target_properties(winml_lib_image
 
 # Add deps
 add_dependencies(winml_lib_image winml_sdk_cppwinrt)
-add_dependencies(winml_lib_image winml_api)
 add_dependencies(winml_lib_image winml_api_native)
 add_dependencies(winml_lib_image winml_api_native_internal)
 
 # Link libraries
 target_link_libraries(winml_lib_image PRIVATE dxgi d3d11 d3d12 wil winml_lib_common)
+target_link_libraries(winml_lib_image PRIVATE winml_api)
 
 get_target_property(winml_lib_image_include_directories winml_lib_image INCLUDE_DIRECTORIES)
 
@@ -493,7 +494,6 @@ target_compile_definitions(winml_lib_api PRIVATE _SCL_SECURE_NO_WARNINGS)       
 target_precompiled_header(winml_lib_api lib/Api/pch/pch.h)
 
 # Includes
-target_include_directories(winml_lib_api PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api)                   # windows machine learning generated component headers
 target_include_directories(winml_lib_api PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api/comp_generated)    # windows machine learning generated component headers
 target_include_directories(winml_lib_api PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml/sdk/cppwinrt/include)  # sdk cppwinrt headers
 
@@ -530,12 +530,13 @@ set_target_properties(winml_lib_api
 # Add deps
 add_dependencies(winml_lib_api onnx)
 add_dependencies(winml_lib_api winml_sdk_cppwinrt)
-add_dependencies(winml_lib_api winml_api)
 add_dependencies(winml_lib_api winml_api_native)
 add_dependencies(winml_lib_api winml_api_native_internal)
 
 # Link libraries
 target_link_libraries(winml_lib_api PRIVATE wil winml_lib_telemetry winml_lib_common)
+target_link_libbraries(winml_libb_api PRIVATE winml_api)
+
 if (onnxruntime_USE_DML)
   target_add_dml(winml_lib_api)
 endif(onnxruntime_USE_DML)
@@ -584,7 +585,6 @@ target_compile_definitions(winml_lib_api_experimental PRIVATE _SCL_SECURE_NO_WAR
 target_precompiled_header(winml_lib_api_experimental lib/Api.Experimental/pch/pch.h)
 
 # Includes
-target_include_directories(winml_lib_api_experimental PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api)                   # windows machine learning generated component headers
 target_include_directories(winml_lib_api_experimental PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api/comp_generated)    # windows machine learning generated component headers
 target_include_directories(winml_lib_api_experimental PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api_experimental)      # windows machine learning generated component headers
 target_include_directories(winml_lib_api_experimental PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api_experimental/comp_generated) # windows machine learning generated component headers
@@ -623,13 +623,14 @@ set_target_properties(winml_lib_api_experimental
 # Add deps
 add_dependencies(winml_lib_api_experimental onnx)
 add_dependencies(winml_lib_api_experimental winml_sdk_cppwinrt)
-add_dependencies(winml_lib_api_experimental winml_api)
 add_dependencies(winml_lib_api_experimental winml_api_native)
 add_dependencies(winml_lib_api_experimental winml_api_native_internal)
 add_dependencies(winml_lib_api_experimental winml_api_experimental)
 
 # Link libraries
 target_link_libraries(winml_lib_api_experimental PRIVATE wil winml_lib_telemetry winml_lib_common)
+target_link_libraries(winml_lib_api_experimental PRIVATE winml_api)
+
 if (onnxruntime_USE_DML)
   target_add_dml(winml_lib_api_experimental)
 endif(onnxruntime_USE_DML)
@@ -658,8 +659,9 @@ onnxruntime_add_static_library(winml_lib_common
 set_target_properties(winml_lib_common PROPERTIES CXX_STANDARD 17)
 set_target_properties(winml_lib_common PROPERTIES CXX_STANDARD_REQUIRED ON)
 target_compile_options(winml_lib_common PRIVATE /GR- /await /bigobj /wd4238)
+
 target_link_libraries(winml_lib_common PRIVATE wil)
-target_include_directories(winml_lib_common PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api)
+target_link_libraries(winml_lib_common PRIVATE winml_api)
 
 # Compiler flags
 target_compile_definitions(winml_lib_common PRIVATE BINARY_NAME=\"${BINARY_NAME}\")
@@ -672,12 +674,9 @@ target_compile_definitions(winml_lib_common PRIVATE PLATFORM_WINDOWS)
 target_compile_definitions(winml_lib_common PRIVATE _SCL_SECURE_NO_WARNINGS)
 
 add_dependencies(winml_lib_common winml_sdk_cppwinrt)
-add_dependencies(winml_lib_common winml_api)
 add_dependencies(winml_lib_common winml_api_native)
 add_dependencies(winml_lib_common winml_api_native_internal)
 
-
-target_include_directories(winml_lib_common PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api)                   # windows machine learning generated component headers
 target_include_directories(winml_lib_common PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api/comp_generated)    # windows machine learning generated component headers
 target_include_directories(winml_lib_common PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml/sdk/cppwinrt/include)  # sdk cppwinrt headers
 target_include_directories(winml_lib_common PRIVATE ${winml_lib_api_dir})
@@ -735,7 +734,6 @@ endif()
 target_precompiled_header(winml_dll dll/pch.h)
 
 # Includes
-target_include_directories(winml_dll PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api)                   # windows machine learning generated component headers
 target_include_directories(winml_dll PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api/comp_generated)    # windows machine learning generated component headers
 target_include_directories(winml_dll PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api_experimental/comp_generated)    # windows machine learning generated component headers
 target_include_directories(winml_dll PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml/sdk/cppwinrt/include)  # sdk cppwinrt headers
@@ -797,6 +795,7 @@ add_dependencies(winml_dll winml_api_native_internal)
 target_link_libraries(winml_dll PRIVATE re2)
 target_link_libraries(winml_dll PRIVATE wil)
 target_link_libraries(winml_dll PRIVATE winml_lib_api winml_lib_common)
+target_link_libraries(winml_dll PRIVATE winml_api)
 
 if (NOT winml_is_inbox)
   target_link_libraries(winml_dll PRIVATE winml_lib_api_experimental)
