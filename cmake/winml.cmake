@@ -287,6 +287,7 @@ add_dependencies(winml_lib_ort winml_api_native_internal)
 if (onnxruntime_USE_DML)
   target_add_dml(winml_lib_ort)
 endif()
+
 target_link_libraries(winml_lib_ort PRIVATE wil winml_lib_common)
 target_link_libraries(winml_lib_ort INTERFACE winml_lib_api)
 target_link_libraries(winml_lib_ort INTERFACE winml_lib_telemetry)
@@ -689,7 +690,6 @@ add_dependencies(winml_lib_common winml_api_native_internal)
 
 target_include_directories(winml_lib_common PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_api/comp_generated)    # windows machine learning generated component headers
 target_include_directories(winml_lib_common PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml/sdk/cppwinrt/include)  # sdk cppwinrt headers
-target_include_directories(winml_lib_common PRIVATE ${winml_lib_api_dir})
 target_include_directories(winml_lib_common PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(winml_lib_common PRIVATE ${winml_lib_common_dir}/inc)
 target_include_directories(winml_lib_common PRIVATE ${REPO_ROOT}/winml)
@@ -700,6 +700,8 @@ target_include_directories(winml_lib_common INTERFACE ${winml_lib_common_dir}/in
 if (onnxruntime_USE_DML)
   target_add_dml(winml_lib_common)
 endif()
+
+target_link_libraries(winml_lib_common PRIVATE ${winml_lib_api})
 
 ###########################
 # Add winml_dll
@@ -751,7 +753,6 @@ target_include_directories(winml_dll PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml_a
 target_include_directories(winml_dll PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/winml/sdk/cppwinrt/include)  # sdk cppwinrt headers
 
 target_include_directories(winml_dll PRIVATE ${winml_dll_dir})
-target_include_directories(winml_dll PRIVATE ${winml_lib_api_dir})
 target_include_directories(winml_dll PRIVATE ${winml_lib_api_dir}/impl)
 if (NOT winml_is_inbox)
   target_include_directories(winml_dll PRIVATE ${winml_lib_api_experimental_dir})
@@ -804,10 +805,11 @@ add_dependencies(winml_dll winml_api_native_internal)
 # Link libraries
 target_link_libraries(winml_dll PRIVATE re2)
 target_link_libraries(winml_dll PRIVATE wil)
-target_link_libraries(winml_dll PRIVATE winml_lib_api winml_lib_common)
+target_link_libraries(winml_dll PRIVATE winml_lib_common)
 target_link_libraries(winml_dll PRIVATE winml_api)
 target_link_libraries(winml_dll PRIVATE winml_lib_telemetry)
 target_link_libraries(winml_dll PRIVATE winml_adapter)
+target_link_libraries(winml_dll PRIVATE winml_lib_api)
 
 if (NOT winml_is_inbox)
   target_link_libraries(winml_dll PRIVATE winml_lib_api_experimental)
