@@ -686,6 +686,8 @@ target_include_directories(winml_lib_common PRIVATE ${winml_lib_common_dir}/inc)
 target_include_directories(winml_lib_common PRIVATE ${REPO_ROOT}/winml)
 target_precompiled_header(winml_lib_common lib/Common/inc/pch.h)
 
+target_include_directories(winml_lib_common INTERFACE ${winml_lib_common_dir}/inc)
+
 if (onnxruntime_USE_DML)
   target_add_dml(winml_lib_common)
 endif()
