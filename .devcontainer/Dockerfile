@@ -7,9 +7,9 @@
 # ENV DEBIAN_FRONTEND=noninteractive
 
 # [Choice] Debian / Ubuntu version (use Debian 11, Ubuntu 18.04/22.04 on local arm64/Apple Silicon): debian-11, debian-10, ubuntu-22.04, ubuntu-20.04, ubuntu-18.04
-# ARG VARIANT=ubuntu-20.04
-# FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT}
-FROM ubuntu:20.04
+ARG VARIANT=ubuntu-20.04
+FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT}
+# FROM ubuntu:20.04
 
 # Install common packages
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
