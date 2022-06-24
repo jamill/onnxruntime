@@ -38,4 +38,4 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 
 # Install python dependencies
 RUN pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
-RUN pip install packaging wheel
+RUN pip install packaging "wheel>=0.35.1"
