@@ -778,6 +778,52 @@ void resize_impl_ort_(
   return;
 }
 
+// Returns true if resize is necessary
+bool resize_output_check(
+  ORTTensorImpl* output,
+  at::IntArrayRef shape) {
+  if (output->sizes().equals(shape)) {
+    return false;
+  }
+
+  // The PyTorch implementations of this function
+  // for CPU / CUDA expect we will only resize an
+  // empty out tensor, and warn if the out tensor
+  // is not empty...
+
+  return true;
+}
+
+/*
+ * Utility function for resizing output tensor
+ * Only resizes if:
+ *   - The shape is different
+ *   - The output tensor is empty
+ *
+ * We do not support resizing non-empty output tensors.
+ * PyToch implementation of resize will warn about resizing
+ * non-empty and indicate this is deprecated behavior that
+ * can / will change.
+  *
+ * In PyTorch repository see: aten/src/ATen/native/Resize.{h|cpp}
+ */
+void resize_output(
+  onnxruntime::ORTInvoker& invoker,
+  ORTTensorImpl* output,
+  at::IntArrayRef shape) {
+
+  if (output->sizes().equals(shape)) {
+    return;
+  }
+
+  if (output->numel() != 0) {
+    throw std::runtime_error(
+      "resizing a non-empty output tensor is not supported.");
+  }
+
+  resize_impl_ort_(invoker, output, shape);
+}
+
 const at::Tensor& resize_(
     const at::Tensor& self,
     at::IntArrayRef size,
