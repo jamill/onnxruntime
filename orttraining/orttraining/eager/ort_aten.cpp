@@ -796,7 +796,13 @@ at::Tensor& out) {
   attrs["keepdims"] = create_ort_attribute(
   "keepdims", keepdim, at::ScalarType::Int);
 
-  std::vector<OrtValue> ort_outputs_0_ArgMax(1);
+
+  resize_output(invoker,
+                dynamic_cast<ORTTensorImpl*>(out.unsafeGetTensorImpl()),
+                self.sizes());
+
+  auto ort_out = create_ort_value(invoker, out);
+  std::vector<OrtValue> ort_outputs_0_ArgMax{ort_out};
 
   auto status = invoker.Invoke("ArgMax", {
   std::move(ort_input_self),
@@ -805,13 +811,6 @@ at::Tensor& out) {
   if (!status.IsOK())
   throw std::runtime_error(
   "ORT return failure status:" + status.ErrorMessage());
-
-  at::TensorOptions tensor_options = out.options();
-
-  // generator also needs to do this to handle the out param!
-  out = aten_tensor_from_ort(
-  std::move(ort_outputs_0_ArgMax[0]),
-  tensor_options);
   return out;
 }
 
