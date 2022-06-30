@@ -795,10 +795,18 @@ at::Tensor& out) {
   attrs["keepdims"] = create_ort_attribute(
   "keepdims", keepdim, at::ScalarType::Int);
 
+  ORT_LOG_VERBOSE << "self size: " << self.sizes();
+  ORT_LOG_VERBOSE << "out size: " << out.sizes();
+  ORT_LOG_VERBOSE << "out options: " << out.options();
+  int output_size = 0;
+
+  if (dim > 0) {
+    output_size = self.sizes()[l_axis - 1];
+  }
 
   resize_output(invoker,
                 dynamic_cast<ORTTensorImpl*>(out.unsafeGetTensorImpl()),
-                self.sizes());
+               at::IntArrayRef{output_size});
 
   auto ort_out = create_ort_value(invoker, out);
   std::vector<OrtValue> ort_outputs_0_ArgMax{ort_out};

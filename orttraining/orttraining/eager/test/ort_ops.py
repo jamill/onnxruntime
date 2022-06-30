@@ -191,6 +191,10 @@ class OrtOpTests(unittest.TestCase):
         device = self.get_device()
         cpu_tensor = torch.rand(3, 5)
         ort_tensor = cpu_tensor.to(device)
+
+        cpu_out_tensor = torch.tensor([], dtype=torch.long)
+        ort_out_tensor = cpu_out_tensor.to(device)
+
         cpu_result = torch.argmax(cpu_tensor, dim=1)
         ort_result = torch.argmax(ort_tensor, dim=1)
         assert torch.allclose(cpu_result, ort_result.cpu())
