@@ -9,7 +9,7 @@
 namespace torch_ort {
 namespace eager {
 
-constexpr const char* kORTVirtualDeviceCount="ORT_VIRTUAL_DEVICE_COUNT";
+constexpr const char* kORTVirtualDeviceCount = "ORT_VIRTUAL_DEVICE_COUNT";
 
 struct ORTGuardImpl final : public c10::impl::DeviceGuardImplInterface {
   ORTGuardImpl() {
@@ -70,20 +70,20 @@ struct ORTGuardImpl final : public c10::impl::DeviceGuardImplInterface {
     return ort_virtual_device_count.empty() ? 1 : std::stoi(ort_virtual_device_count);
   }
 
-//  #pragma region events
+  //  #pragma region events
 
-  #define EVENTS_NIEX TORCH_CHECK(false, "ORT backend doesn't support events.")
+#define EVENTS_NIEX TORCH_CHECK(false, "ORT backend doesn't support events.")
 
   void record(void** event,
-    const at::Stream& stream,
-    const at::DeviceIndex device_index,
-    const at::EventFlag flag) const override {
+              const at::Stream& stream,
+              const at::DeviceIndex device_index,
+              const at::EventFlag flag) const override {
     EVENTS_NIEX;
   }
 
   void block(
-    void* event,
-    const at::Stream& stream) const override {
+      void* event,
+      const at::Stream& stream) const override {
     EVENTS_NIEX;
   }
 
@@ -92,11 +92,11 @@ struct ORTGuardImpl final : public c10::impl::DeviceGuardImplInterface {
   }
 
   void destroyEvent(
-    void* event,
-    const at::DeviceIndex device_index) const noexcept override {
+      void* event,
+      const at::DeviceIndex device_index) const noexcept override {
   }
 
-  #undef EVENTS_NIEX
+#undef EVENTS_NIEX
 
   //#pragma endregion events
 
@@ -110,5 +110,5 @@ thread_local std::map<at::DeviceIndex, at::StreamId> ORTGuardImpl::current_strea
 
 C10_REGISTER_GUARD_IMPL(ORT, ORTGuardImpl);
 
-} // namespace eager
-} // namespace torch_ort
+}  // namespace eager
+}  // namespace torch_ort

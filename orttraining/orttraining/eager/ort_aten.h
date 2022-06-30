@@ -14,40 +14,40 @@ namespace torch_ort {
 namespace eager {
 
 at::Tensor aten_tensor_from_ort(
-  OrtValue&& ot,
-  const at::TensorOptions& options);
+    OrtValue&& ot,
+    const at::TensorOptions& options);
 
 const std::vector<at::Tensor> aten_tensor_from_ort(
-  std::vector<OrtValue>& ortvalues,
-  const at::TensorOptions& options);
+    std::vector<OrtValue>& ortvalues,
+    const at::TensorOptions& options);
 
 onnxruntime::MLDataType ort_scalar_type_from_aten(
-  at::ScalarType dtype);
+    at::ScalarType dtype);
 
 OrtValue create_ort_value(
-  onnxruntime::ORTInvoker& invoker,
-  const at::Scalar& scalar);
+    onnxruntime::ORTInvoker& invoker,
+    const at::Scalar& scalar);
 
 OrtValue create_ort_value(
-  onnxruntime::ORTInvoker& invoker,
-  const at::Scalar& scalar,
-  at::ScalarType type);
+    onnxruntime::ORTInvoker& invoker,
+    const at::Scalar& scalar,
+    at::ScalarType type);
 
 OrtValue create_ort_value(
-  onnxruntime::ORTInvoker& invoker,
-  const at::Tensor& tensor);
+    onnxruntime::ORTInvoker& invoker,
+    const at::Tensor& tensor);
 
 std::vector<OrtValue> create_ort_value(
-  onnxruntime::ORTInvoker& invoker,
-  at::TensorList tensors);
+    onnxruntime::ORTInvoker& invoker,
+    at::TensorList tensors);
 
 OrtValue create_ort_value(const at::Tensor& tensor);
 
 // Create 1-dimensional ORT tensor from a given value
 template <typename T>
 OrtValue create_ort_value(
-  onnxruntime::ORTInvoker& invoker,
-  const T val) {
+    onnxruntime::ORTInvoker& invoker,
+    const T val) {
   OrtValue ort_val;
   onnxruntime::Tensor::InitOrtValue(onnxruntime::DataTypeImpl::GetType<T>(), onnxruntime::TensorShape({1}),
                                     invoker.GetCurrentExecutionProvider().GetAllocator(0, OrtMemTypeDefault), ort_val);
@@ -58,49 +58,49 @@ OrtValue create_ort_value(
 
 template <typename T>
 OrtValue create_ort_value(
-  onnxruntime::ORTInvoker& invoker,
-  c10::optional<T> val) {
+    onnxruntime::ORTInvoker& invoker,
+    c10::optional<T> val) {
   return create_ort_value(invoker, val.value());
 }
 
-template<typename T>
+template <typename T>
 OrtValue create_ort_value(
-  onnxruntime::ORTInvoker& invoker,
-  const std::vector<T> values) {
+    onnxruntime::ORTInvoker& invoker,
+    const std::vector<T> values) {
   OrtValue ort_value;
   onnxruntime::Tensor::InitOrtValue(
       onnxruntime::DataTypeImpl::GetType<T>(), onnxruntime::TensorShape({(int64_t)values.size()}),
       invoker.GetCurrentExecutionProvider().GetAllocator(0, OrtMemTypeDefault), ort_value);
   CopyVectorToTensor<T>(
-    invoker,
-    values.data(),
-    values.size(),
-    *ort_value.GetMutable<onnxruntime::Tensor>());
+      invoker,
+      values.data(),
+      values.size(),
+      *ort_value.GetMutable<onnxruntime::Tensor>());
   return ort_value;
 }
 
-template<typename T>
+template <typename T>
 OrtValue create_ort_value(
-  onnxruntime::ORTInvoker& invoker,
-  const at::ArrayRef<T> values) {
+    onnxruntime::ORTInvoker& invoker,
+    const at::ArrayRef<T> values) {
   std::vector<T> values_vector;
   values_vector.assign(values.begin(), values.end());
   return create_ort_value(invoker, values_vector);
 }
 
 onnx::AttributeProto create_ort_attribute(
-  const char* name,
-  at::Scalar value,
-  const bool isTensor=false);
+    const char* name,
+    at::Scalar value,
+    const bool isTensor = false);
 
 onnx::AttributeProto create_ort_attribute(
-  const char* name,
-  at::Scalar value,
-  at::ScalarType type);
+    const char* name,
+    at::Scalar value,
+    at::ScalarType type);
 
 onnx::AttributeProto create_ort_attribute(
-  const char* name,
-  const char* value);
+    const char* name,
+    const char* value);
 
 bool IsSupportedType(at::Scalar scalar, const std::vector<at::ScalarType>& valid_types);
 
@@ -121,5 +121,5 @@ c10::optional<at::ScalarType> PromoteScalarTypesWithCategory(
 ONNX_NAMESPACE::TensorProto_DataType GetONNXTensorProtoDataType(at::ScalarType dtype);
 
 OrtValue CastToType(onnxruntime::ORTInvoker& invoker, const OrtValue& input, at::ScalarType type);
-} // namespace eager
-} // namespace torch_ort
+}  // namespace eager
+}  // namespace torch_ort

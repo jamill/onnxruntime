@@ -21,17 +21,17 @@ inline void CopyVectorToTensor(onnxruntime::ORTInvoker& invoker,
   OrtMemoryInfo cpuMemoryInfo;
 
   Ort::ThrowOnError(Ort::GetApi().CreateTensorWithDataAsOrtValue(
-    &cpuMemoryInfo,
-    const_cast<void*>(reinterpret_cast<const void*>(value_ptr)),
-    size * sizeof(T),
-    &size,
-    1,
-    Ort::TypeToTensorType<T>::type,
-    &ort_value));
+      &cpuMemoryInfo,
+      const_cast<void*>(reinterpret_cast<const void*>(value_ptr)),
+      size * sizeof(T),
+      &size,
+      1,
+      Ort::TypeToTensorType<T>::type,
+      &ort_value));
 
   ORT_THROW_IF_ERROR(execution_provider.GetDataTransfer()->CopyTensor(
-    ort_value->Get<onnxruntime::Tensor>(),
-    tensor));
+      ort_value->Get<onnxruntime::Tensor>(),
+      tensor));
 }
 
 // vector<bool> is specialized so we need to handle it separately
@@ -48,5 +48,5 @@ inline void CopyVectorToTensor<bool>(onnxruntime::ORTInvoker& /*invoker*/,
 
 onnxruntime::TensorShapeVector GetStrides(gsl::span<const int64_t> shape);
 
-} // namespace eager
-} // namespace torch_ort
+}  // namespace eager
+}  // namespace torch_ort

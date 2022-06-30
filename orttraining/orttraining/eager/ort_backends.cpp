@@ -10,16 +10,15 @@
 #include "core/platform/env.h"
 #include "orttraining/python/orttraining_python_module_eager.h"
 
-
 //use the environment from python module
-namespace onnxruntime{
-namespace python{
-  Environment& GetTrainingORTEnv();
-  std::shared_ptr<IExecutionProvider> GetOrCreateExecutionProvider(const std::string& provider_type,
+namespace onnxruntime {
+namespace python {
+Environment& GetTrainingORTEnv();
+std::shared_ptr<IExecutionProvider> GetOrCreateExecutionProvider(const std::string& provider_type,
                                                                  const ProviderOptionsMap& provider_options_map,
                                                                  const SessionOptions& session_options);
-}
-}
+}  // namespace python
+}  // namespace onnxruntime
 
 namespace torch_ort {
 namespace eager {
@@ -31,25 +30,25 @@ onnxruntime::ORTInvoker& GetORTInvoker(const at::Device device) {
   return GetORTBackendsManager().GetInvoker(device);
 }
 
-ORTBackendsManager::ORTBackendsManager(const onnxruntime::logging::Logger& logger): logger_(logger){
+ORTBackendsManager::ORTBackendsManager(const onnxruntime::logging::Logger& logger) : logger_(logger) {
   // set device index 0 to cpu EP as default backend.
   auto status = set_device(0, kCpuExecutionProvider, {});
-  if (!status.IsOK()){
+  if (!status.IsOK()) {
     throw std::runtime_error("Init CPU device failed: " + status.ErrorMessage());
   }
 }
 
 onnxruntime::Status ORTBackendsManager::set_device(size_t device_index, const std::string& provider_type,
-                                 const ProviderOptions& provider_options){
-  auto ep = onnxruntime::python::GetOrCreateExecutionProvider(provider_type, 
-                               ProviderOptionsMap{{provider_type, provider_options}},
-                               SessionOptions{});
+                                                   const ProviderOptions& provider_options) {
+  auto ep = onnxruntime::python::GetOrCreateExecutionProvider(provider_type,
+                                                              ProviderOptionsMap{{provider_type, provider_options}},
+                                                              SessionOptions{});
 
-  auto invoker = 
-  std::make_unique<onnxruntime::ORTInvoker>(
-    std::move(ep),
-    logger_,
-    custom_op_schema_);
+  auto invoker =
+      std::make_unique<onnxruntime::ORTInvoker>(
+          std::move(ep),
+          logger_,
+          custom_op_schema_);
 
   backends_[device_index] = std::move(invoker);
   ProviderInfoMap provider_info;
@@ -58,15 +57,15 @@ onnxruntime::Status ORTBackendsManager::set_device(size_t device_index, const st
   return onnxruntime::Status::OK();
 }
 
-OrtDevice ORTBackendsManager::GetOrtDeviceInfo(size_t torch_device_index){
+OrtDevice ORTBackendsManager::GetOrtDeviceInfo(size_t torch_device_index) {
   auto lookup = backends_.find(torch_device_index);
   ORT_ENFORCE(lookup != backends_.end());
   auto allocator = lookup->second->GetCurrentExecutionProvider().GetAllocator(0, OrtMemTypeDefault);
   return allocator->Info().device;
 }
 
-size_t ORTBackendsManager::GetOrtDeviceIndex(const OrtMemoryInfo& ort_memory_info){
-  for (auto it = backends_.begin(); it != backends_.end(); ++it){
+size_t ORTBackendsManager::GetOrtDeviceIndex(const OrtMemoryInfo& ort_memory_info) {
+  for (auto it = backends_.begin(); it != backends_.end(); ++it) {
     //eager mode currently only operate on EP's default memory type
     auto allocator = it->second->GetCurrentExecutionProvider().GetAllocator(0, OrtMemTypeDefault);
     if (allocator->Info() == ort_memory_info)
@@ -95,11 +94,12 @@ onnxruntime::ORTInvoker& ORTBackendsManager::GetInvoker(const at::Device device)
   auto lookup = backends_.find(device_index);
   if (lookup != backends_.end()) {
     return *lookup->second;
-  }else{
-    throw std::runtime_error("ORT device index: " + std::to_string(device_index) + " not initialized, \
+  } else {
+    throw std::runtime_error("ORT device index: " + std::to_string(device_index) +
+                             " not initialized, \
                               please use 'torch_ort.set_device' to initialize it first.");
   }
 }
 
-} // namespace eager
-} // namespace torch_ort
+}  // namespace eager
+}  // namespace torch_ort

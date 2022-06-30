@@ -8,49 +8,49 @@ namespace torch_ort {
 namespace eager {
 
 c10::intrusive_ptr<c10::TensorImpl> ORTTensorImpl::shallow_copy_and_detach(
-  const c10::VariableVersion& version_counter,
-  bool allow_tensor_metadata_change) const {
+    const c10::VariableVersion& version_counter,
+    bool allow_tensor_metadata_change) const {
   auto impl = c10::make_intrusive<ORTTensorImpl>(
-    tensor_,
-    at::TensorOptions()
-      .dtype(this->dtype())
-      .device(this->device()));
+      tensor_,
+      at::TensorOptions()
+          .dtype(this->dtype())
+          .device(this->device()));
 
   copy_tensor_metadata(
-    this,
-    impl.get(),
-    version_counter,
-    allow_tensor_metadata_change);
+      this,
+      impl.get(),
+      version_counter,
+      allow_tensor_metadata_change);
 
   return impl;
 }
 
 c10::intrusive_ptr<c10::TensorImpl> ORTTensorImpl::shallow_copy_and_detach(
-  c10::VariableVersion&& version_counter,
-  bool allow_tensor_metadata_change) const {
+    c10::VariableVersion&& version_counter,
+    bool allow_tensor_metadata_change) const {
   auto impl = c10::make_intrusive<ORTTensorImpl>(
-    tensor_,
-    at::TensorOptions()
-      .dtype(this->dtype())
-      .device(this->device()));
+      tensor_,
+      at::TensorOptions()
+          .dtype(this->dtype())
+          .device(this->device()));
 
   copy_tensor_metadata(
-    this,
-    impl.get(),
-    std::move(version_counter),
-    allow_tensor_metadata_change);
+      this,
+      impl.get(),
+      std::move(version_counter),
+      allow_tensor_metadata_change);
 
   return impl;
 }
 
 void ORTTensorImpl::shallow_copy_from(
-  const c10::intrusive_ptr<TensorImpl>& impl) {
+    const c10::intrusive_ptr<TensorImpl>& impl) {
   auto* src_impl = dynamic_cast<ORTTensorImpl*>(impl.get());
   copy_tensor_metadata(
-    src_impl,
-    this,
-    version_counter(),
-    allow_tensor_metadata_change());
+      src_impl,
+      this,
+      version_counter(),
+      allow_tensor_metadata_change());
 }
 
 at::IntArrayRef ORTTensorImpl::sizes() const {
@@ -104,8 +104,8 @@ bool ORTTensorImpl::has_storage() const {
 
 at::IntArrayRef ORTTensorImpl::strides() const {
   const_cast<ORTTensorImpl*>(this)->cacheSizeMetadata();
-  return sizes_and_strides_.strides_arrayref(); 
+  return sizes_and_strides_.strides_arrayref();
 }
 
-} // namespace eager
-} // namespace torch_ort
+}  // namespace eager
+}  // namespace torch_ort

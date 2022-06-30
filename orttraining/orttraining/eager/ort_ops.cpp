@@ -10,7 +10,7 @@ namespace torch_ort {
 namespace eager {
 
 void copy(onnxruntime::ORTInvoker& invoker,
-          const OrtValue& src, OrtValue& dst){
+          const OrtValue& src, OrtValue& dst) {
   auto& ort_ep = invoker.GetCurrentExecutionProvider();
   const auto& src_tensor = src.Get<onnxruntime::Tensor>();
   auto* dst_tensor = dst.GetMutable<onnxruntime::Tensor>();
@@ -35,5 +35,5 @@ template <typename T>
 using Vector = std::vector<T, std::allocator<T>>;
 template void createInplaceOutputValue<Vector>(OrtValue& input, Vector<int64_t> shape, OrtValue* p_mlvalue);
 
-} // namespace eager
-} // namespace torch_ort
+}  // namespace eager
+}  // namespace torch_ort

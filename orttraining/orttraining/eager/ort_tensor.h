@@ -13,10 +13,10 @@ namespace eager {
 class ORTTensorImpl final : public c10::TensorImpl {
  public:
   explicit ORTTensorImpl(OrtValue tensor, const at::TensorOptions& options)
-    : c10::TensorImpl(
-        c10::DispatchKeySet{c10::DispatchKey::ORT},
-        options.dtype(),
-        options.device()) {
+      : c10::TensorImpl(
+            c10::DispatchKeySet{c10::DispatchKey::ORT},
+            options.dtype(),
+            options.device()) {
     set_tensor(tensor);
   }
 
@@ -29,12 +29,12 @@ class ORTTensorImpl final : public c10::TensorImpl {
   }
 
   c10::intrusive_ptr<TensorImpl> shallow_copy_and_detach(
-    const c10::VariableVersion& version_counter,
-    bool allow_tensor_metadata_change) const override;
+      const c10::VariableVersion& version_counter,
+      bool allow_tensor_metadata_change) const override;
 
   c10::intrusive_ptr<TensorImpl> shallow_copy_and_detach(
-    c10::VariableVersion&& version_counter,
-    bool allow_tensor_metadata_change) const override;
+      c10::VariableVersion&& version_counter,
+      bool allow_tensor_metadata_change) const override;
 
   void shallow_copy_from(const c10::intrusive_ptr<TensorImpl>& impl) override;
 
@@ -52,12 +52,12 @@ class ORTTensorImpl final : public c10::TensorImpl {
 
   bool has_storage() const override;
 
-  at::IntArrayRef strides() const override;  
+  at::IntArrayRef strides() const override;
 
  private:
   void cacheSizeMetadata();
   OrtValue tensor_;
 };
 
-} // namespace eager
-} // namespace torch_ort
+}  // namespace eager
+}  // namespace torch_ort
