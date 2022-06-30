@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 #include "ort_aten.h"
-#include "ort_tensor.h"
 #include <c10/core/TensorImpl.h>
 #include <ATen/native/CPUFallback.h>
 #include <ATen/InferSize.h>
