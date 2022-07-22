@@ -35,5 +35,5 @@ RUN apt-get update \
     && apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 # Install python dependencies
-RUN pip install torch==1.11.0 torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
+RUN pip install torch==1.11.0 torchvision torchaudio
 RUN pip install packaging "wheel>=0.35.1" parameterized
