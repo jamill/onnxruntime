@@ -8,6 +8,7 @@ import unittest
 import numpy as np
 import onnxruntime_pybind11_state as torch_ort
 import torch
+import torch.nn
 from parameterized import parameterized
 
 
@@ -444,6 +445,30 @@ class OrtOpTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             torch.mm(ort_mat1, ort_not_matrix)
 
+    def test_bernoulli__float(self):
+        device = self.get_device()
+
+        cpu_tensor = torch.rand(5)
+        ort_tensor = cpu_tensor.to(device)
+
+        cpu_result = torch.bernoulli(cpu_tensor, 0.5)
+        print(cpu_result)
+
+        ort_result = torch.bernoulli(ort_tensor, 0.5)
+        print(ort_result)
+
+    def test_dropout(self):
+        device = self.get_device()
+        m = torch.nn.Dropout(p=0.2)
+        input_cpu = torch.randn(20, 16)
+        input_ort = input_cpu.to(device)
+
+        output_cpu = m(input_cpu)
+        # print(output_cpu)
+
+        # output_ort = m(input_ort)
+        # print(output_ort)
+
     ################################ parameterized test follow #######################################
     # OPS - is a list of [test_operator, tested_tensor=torch.rand (6)].
     # The default value for tested_tensor is torch.rand (6)- size of 6 uniform distribution on the interval [0, 1).
@@ -706,6 +731,6 @@ class OrtOpTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # torch_ort.set_default_logger_severity(0)
-    # torch_ort.set_default_logger_verbosity(4)
+    torch_ort.set_default_logger_severity(0)
+    torch_ort.set_default_logger_verbosity(4)
     unittest.main()

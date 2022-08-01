@@ -11,7 +11,7 @@
 
 namespace onnxruntime {
 
-#define ORT_EAGER_ONNX_OPSET_VERSION 14
+#define ORT_EAGER_ONNX_OPSET_VERSION 15
 
 common::Status ORTInvoker::Invoke(const std::string& op_name,
                                   //optional inputs / outputs?
@@ -23,8 +23,8 @@ common::Status ORTInvoker::Invoke(const std::string& op_name,
   std::unordered_map<std::string, int> domain_version_map = {{kOnnxDomain, ORT_EAGER_ONNX_OPSET_VERSION},
                                                              {kMSDomain, 1}};
   //create a graph
-  Model model("test", 
-              false, 
+  Model model("test",
+              false,
               ModelMetaData(),
               ORT_TSTR(""),
               custom_op_registries_,

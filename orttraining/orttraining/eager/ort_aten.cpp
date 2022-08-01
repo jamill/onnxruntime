@@ -955,6 +955,38 @@ at::Tensor& fill__Scalar(
   return self;
 }
 
+// aten::bernoulli_.float(Tensor(a!) self, float p=0.5, *, Generator? generator=None) -> Tensor(a!)
+at::Tensor& bernoulli__float(
+  at::Tensor& self,
+  double p,
+  // *,
+  c10::optional<at::Generator> generator) {
+  ORT_LOG_FN(self, p, generator);
+
+  if (
+    !IsSupportedType(self, {at::kDouble,at::kFloat,at::kHalf})) {
+    return at::native::call_fallback_fn<
+      &at::native::cpu_fallback,
+      ATEN_OP(bernoulli__float)>::call(self, p, generator);
+  }
+  auto& invoker = GetORTInvoker(self.device());
+  at::Scalar scalar_val{p};
+
+  auto self_filled = fill__Scalar(self, p);
+
+  auto ort_input_0_self = create_ort_value(invoker, self_filled);
+
+  std::vector<OrtValue> ort_outputs_0_Bernoulli(1);
+  ort_outputs_0_Bernoulli[0] = create_ort_value(invoker, self);
+
+  auto status = invoker.Invoke("Bernoulli", {
+    std::move(ort_input_0_self),
+  }, ort_outputs_0_Bernoulli, nullptr);
+  CHECK_STATUS(status);
+
+  return self;
+}
+
 // aten::nonzero.out(Tensor self, *, Tensor(a!) out) -> Tensor(a!)
 at::Tensor& nonzero_out(
     const at::Tensor& self,
